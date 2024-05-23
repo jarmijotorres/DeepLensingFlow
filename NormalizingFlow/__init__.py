@@ -1,1 +1,1 @@
-from DeepLensingFlow.NormalizingFlow.flow import create_multiscale_flow
+from DeepLensingFlow.NormalizingFlow.flows import create_multiscale_flow
