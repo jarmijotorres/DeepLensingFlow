@@ -3,7 +3,7 @@ from torch.utils import data
 import torch.nn as nn
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
-
+import math
 import numpy as np
 
 from tqdm import tqdm
@@ -115,7 +115,7 @@ class SimpleUnet(nn.Module):
     
 class Denoiser(nn.Module):
     
-    def __init__(self, image_resolution, hidden_dims=[88, 88], diffusion_time_embedding_dim = 256, n_times=n_timesteps):
+    def __init__(self, image_resolution, hidden_dims=[88, 88], diffusion_time_embedding_dim = 256, n_times=300):
         super(Denoiser, self).__init__()
         
         img_C,img_W,img_H = image_resolution
@@ -154,7 +154,7 @@ class Denoiser(nn.Module):
         return y
     
 class Diffusion(nn.Module):
-    def __init__(self, model, image_resolution=[256, 256, 1], n_times=n_timesteps, beta_minmax=[1e-4, 2e-2], device='cuda'):
+    def __init__(self, model, image_resolution=[256, 256, 1], n_times=300, beta_minmax=[1e-4, 2e-2], device='cuda'):
     
         super(Diffusion, self).__init__()
     

@@ -162,12 +162,12 @@ class ImageFlow(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         # Normalizing flows are trained by maximum likelihood => return bpd
-        loss = self._get_likelihood(batch[0])                             
+        loss = self._get_likelihood(batch)                             
         #self.log('train_bpd', loss)
         return loss
 
     def validation_step(self, batch, batch_idx):
-        loss = self._get_likelihood(batch[0])
+        loss = self._get_likelihood(batch)
         #self.log('val_bpd', loss)
         return loss
 
@@ -184,7 +184,7 @@ class ImageFlow(pl.LightningModule):
         img_ll = torch.logsumexp(img_ll, dim=-1) - np.log(self.import_samples)
         
         # Calculate final bpd
-        bpd = -img_ll * np.log2(np.exp(1)) / np.prod(batch[0].shape[1:])
+        bpd = -img_ll * np.log2(np.exp(1)) / np.prod(batch.shape[1:])
         bpd = bpd.mean()
         
         #self.log('test_bpd', bpd)
@@ -391,35 +391,78 @@ def create_multiscale_flow(grid_size,device):
     flow_layers += [CouplingLayer(network=GatedConvNet(c_in=1, c_hidden=32),
                                   mask=create_checkerboard_mask(h=grid_size, w=grid_size, invert=(i%2==1)),
                                   c_in=1) for i in range(2)]
+    
     flow_layers += [SqueezeFlow()]
     for i in range(2):
-        flow_layers += [CouplingLayer(network=GatedConvNet(c_in=4, c_hidden=48),
+        flow_layers += [CouplingLayer(network=GatedConvNet(c_in=4, c_hidden=32),
                                       mask=create_channel_mask(c_in=4, invert=(i%2==1)),
                                       c_in=4)]
     flow_layers += [SplitFlow(),
                     SqueezeFlow()]
-    for i in range(4):
-        flow_layers += [CouplingLayer(network=GatedConvNet(c_in=8, c_hidden=64),
+    for i in range(2):
+        flow_layers += [CouplingLayer(network=GatedConvNet(c_in=8, c_hidden=32),
                                       mask=create_channel_mask(c_in=8, invert=(i%2==1)),
                                       c_in=8)]
-    flow_layers +=[SplitFlow(),
-                   SqueezeFlow()]
+
+    flow_layers += [SplitFlow(),
+                SqueezeFlow()]
     for i in range(4):
-        flow_layers += [CouplingLayer(network=GatedConvNet(c_in=16, c_hidden=64),
+        flow_layers += [CouplingLayer(network=GatedConvNet(c_in=16, c_hidden=32),
                                       mask=create_channel_mask(c_in=16, invert=(i%2==1)),
                                       c_in=16)]
-
+                
     flow_model = ImageFlow(flow_layers,device)#.to(device)
     return flow_model.to(device)
-##
-#
-##
-#3
-#
-#
-# for sampling only (repeated)
-#
-class ImageFlow_samp(pl.LightningModule):
+
+# def create_multiscale_flow_improved(grid_size,device):
+#     flow_layers = []
+    
+#     vardeq_layers = [CouplingLayer(network=GatedConvNet(c_in=2, c_out=2, c_hidden=16),
+#                                    mask=create_checkerboard_mask(h=grid_size, w=grid_size, invert=(i%2==1)),
+#                                    c_in=1) for i in range(4)]
+    
+#     flow_layers += [VariationalDequantization(vardeq_layers)]
+    
+#     flow_layers += [CouplingLayer(network=GatedConvNet(c_in=1, c_hidden=32),
+#                                   mask=create_checkerboard_mask(h=grid_size, w=grid_size, invert=(i%2==1)),
+#                                   c_in=1) for i in range(4)]
+    
+#     flow_layers += [SqueezeFlow()]
+#     for i in range(4):
+#         flow_layers += [CouplingLayer(network=GatedConvNet(c_in=4, c_hidden=32),
+#                                       mask=create_channel_mask(c_in=4, invert=(i%2==1)),
+#                                       c_in=4)]
+#     flow_layers += [SplitFlow(),
+#                     SqueezeFlow()]
+#     for i in range(8):
+#         flow_layers += [CouplingLayer(network=GatedConvNet(c_in=8, c_hidden=32),
+#                                       mask=create_channel_mask(c_in=8, invert=(i%2==1)),
+#                                       c_in=8)]
+
+#     flow_layers += [SplitFlow(),
+#                 SqueezeFlow()]
+
+#     for i in range(8):
+#         flow_layers += [CouplingLayer(network=GatedConvNet(c_in=16, c_hidden=32),
+#                                       mask=create_channel_mask(c_in=16, invert=(i%2==1)),
+#                                       c_in=16)]
+
+#     flow_layers += [SplitFlow(),
+#                 SqueezeFlow()]
+
+#     for i in range(8):
+#         flow_layers += [CouplingLayer(network=GatedConvNet(c_in=16, c_hidden=32),
+#                                       mask=create_channel_mask(c_in=16, invert=(i%2==1)),
+#                                       c_in=16)]
+        
+        
+#     flow_model = ImageFlow(flow_layers,device)#.to(device)
+#     return flow_model.to(device)
+
+
+
+
+class ImageFlow_(pl.LightningModule):
 #class ImageFlow(nn.Module):
     
     def __init__(self, flows,device, import_samples=8):
@@ -516,36 +559,3 @@ class ImageFlow_samp(pl.LightningModule):
         
         #self.log('test_bpd', bpd)
         return bpd
-
-def create_multiscale_flow_samp(grid_size,device):
-    flow_layers = []
-    
-    vardeq_layers = [CouplingLayer(network=GatedConvNet(c_in=2, c_out=2, c_hidden=16),
-                                   mask=create_checkerboard_mask(h=grid_size, w=grid_size, invert=(i%2==1)),
-                                   c_in=1) for i in range(4)]
-    
-    flow_layers += [VariationalDequantization(vardeq_layers)]
-    
-    flow_layers += [CouplingLayer(network=GatedConvNet(c_in=1, c_hidden=32),
-                                  mask=create_checkerboard_mask(h=grid_size, w=grid_size, invert=(i%2==1)),
-                                  c_in=1) for i in range(2)]
-    flow_layers += [SqueezeFlow()]
-    for i in range(2):
-        flow_layers += [CouplingLayer(network=GatedConvNet(c_in=4, c_hidden=48),
-                                      mask=create_channel_mask(c_in=4, invert=(i%2==1)),
-                                      c_in=4)]
-    flow_layers += [SplitFlow(),
-                    SqueezeFlow()]
-    for i in range(4):
-        flow_layers += [CouplingLayer(network=GatedConvNet(c_in=8, c_hidden=64),
-                                      mask=create_channel_mask(c_in=8, invert=(i%2==1)),
-                                      c_in=8)]
-    flow_layers +=[SplitFlow(),
-                   SqueezeFlow()]
-    for i in range(4):
-        flow_layers += [CouplingLayer(network=GatedConvNet(c_in=16, c_hidden=64),
-                                      mask=create_channel_mask(c_in=16, invert=(i%2==1)),
-                                      c_in=16)]
-
-    flow_model = ImageFlow_samp(flow_layers,device)#.to(device)
-    return flow_model.to(device)

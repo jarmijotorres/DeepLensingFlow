@@ -39,9 +39,9 @@ def measure_power_spectrum(map_data, pixel_size):
     :return: power spectrum
 
     """
-    data_ft = np.fft.fftshift(np.fft.fft2(map_data)) / map_data.shape[0]
+    data_ft = np.fft.fftshift(np.fft.fft2(map_data)) / map_data.shape[0]        
     nyquist = int(map_data.shape[0]/2)
     power_spectrum_1d =  radial_profile(np.real(data_ft*np.conj(data_ft)))[:nyquist] * (pixel_size)**2
     k = np.arange(power_spectrum_1d.shape[0])
-    ell = 2. * np.pi * k / pixel_size / 360
+    ell = np.pi * k / pixel_size / 180
     return ell, power_spectrum_1d
