@@ -25,46 +25,32 @@ cuda = True
 device = torch.device("cuda:0" if cuda else "cpu")
 
 #++++++++++++++++++++++++ Parameters +++++++++++++++++++++++++++++++++#
-output_dir = sys.argv[1]
-timestep_embedding_dim = 150
+timestep_embedding_dim = 300
 n_layers = 8
 n_timesteps = 300
 beta_minmax=[1e-4, 2e-2]
 
 train_batch_size = 100
-inference_batch_size = 4
 lr = 1e-5
 
-epochs = 101
+epochs = 500
 
 
 #====================== Load data ================================#
-dataset_name = sys.argv[2]
-#list_data = os.listdir(dataset_name)
+output_dir = '/home/x-jarmijotorre/torchDLF_weights/'#sys.argv[1]
+dataset_name = '/anvil/scratch/x-jarmijotorre/Kappamaps/Flask/ML_datasets/logGaussianMaps_10000imgs.hdf5'#sys.argv[1]
 dataset_file = h5py.File(dataset_name,'r')
 dataset = dataset_file['training_set'][:]
-#map_ids = torch.randint(low=0,high=Nmap_gen,size=(N_imgs,))
 
-#dataset = [np.load(dataset_name+s) for s in list_data]
 map_size = len(dataset[0])
 
-#map_ids = torch.randint(low=0,high=Nmap_gen,size=(N_imgs,))
-#log_dataset,_mu,_sigma = shifted_logN_kappa_samples(dataset)
-#log_dataset = np.array(log_dataset)
-#clean_logdata = log_dataset[~np.isnan(log_dataset).any(axis=(1,2))]
-
-#N_imgs = len(clean_logdata)
-#logdataset_tensor = torch.tensor(clean_logdata).reshape(dataset_shape)
 dataset_shape = (len(dataset),1,map_size,map_size)
 dataset_tensor = torch.reshape(torch.Tensor(dataset),dataset_shape)
 
-#del logdataset_tensor,log_dataset
-#dataset.sample(map_ids,transform,dataset_shape)
+#training_set =  datanorm(dataset_tensor,pmin = -0.015,pmax = 0.2)
 
-training_set =  datanorm(dataset_tensor,pmin = -0.015,pmax = 0.2)
-
-train_dataset = training_set[:int(dataset_shape[0]*(0.95))]#dataset.x[:int(N_imgs*(0.95))]
-test_dataset = training_set[int(dataset_shape[0]*(0.95)):]#dataset.x[int(N_imgs*(0.05)):]
+train_dataset = dataset_tensor[:int(dataset_shape[0]*(0.95))]#dataset.x[:int(N_imgs*(0.95))]
+test_dataset = dataset_tensor[int(dataset_shape[0]*(0.95)):]#dataset.x[int(N_imgs*(0.05)):]
 
 kwargs = {'num_workers': 1, 'pin_memory': True} 
 train_loader = data.DataLoader(dataset=train_dataset, batch_size=train_batch_size, shuffle=True, **kwargs)
@@ -73,8 +59,6 @@ test_loader  = data.DataLoader(dataset=test_dataset,  batch_size=5, shuffle=Fals
 
 #------------------------------ create functions ------------------------------------#
 img_size = dataset_shape[1:]
-hidden_dims = [256,256]
-
 model = SimpleUnet(ch_inp=1)
 
 diffusion = Diffusion(model, image_resolution=img_size, n_times=n_timesteps, 
@@ -101,11 +85,7 @@ for epoch in range(epochs):
         
         noisy_input, epsilon, pred_epsilon = diffusion(x)
         
-        #log_p1 = normal_dist.log_prob(pred_epsilon)
-        #log_p2 = normal_dist.log_prob(epsilon)
-        
         loss = denoising_loss(pred_epsilon, epsilon)
-        #loss = denoising_loss(np.exp(log_p1), log_p2)
         
         noise_prediction_loss += loss.item()
         
@@ -114,12 +94,12 @@ for epoch in range(epochs):
         
     print("\tEpoch", epoch + 1, "complete!", "\tDenoising Loss: ", noise_prediction_loss / batch_idx)
     if (epoch % 100) == 0:
-        torch.save(model.state_dict(), output_dir+'DM_weights_lognormalkappa_checkpoint_%d.pt'%epoch)
+        torch.save(model.state_dict(), output_dir+'chekcpoints/DM_weights_lognormalkappa_checkpoint_%d.pt'%epoch)
     loss_epochs.append(noise_prediction_loss/ batch_idx)
     
 print("Finish!!")
 
-torch.save(model.state_dict(), output_dir+'DM_weights_lognormalkappa_.pt')
+torch.save(model.state_dict(), output_dir+'DM_weights_lognormalkappa_maxepochs%d.pt'%epochs)
 
 epochs_array = np.arange(epochs)
 loss_epochs = np.array(loss_epochs)

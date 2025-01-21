@@ -113,48 +113,8 @@ class SimpleUnet(nn.Module):
         return self.output(x)
 
     
-class Denoiser(nn.Module):
-    
-    def __init__(self, image_resolution, hidden_dims=[88, 88], diffusion_time_embedding_dim = 256, n_times=300):
-        super(Denoiser, self).__init__()
-        
-        img_C,img_W,img_H = image_resolution
-        #img_C = image_resolution[1]
-        
-        self.time_embedding = SinusoidalPosEmb(diffusion_time_embedding_dim)
-        
-        self.in_project = ConvBlock(img_C, hidden_dims[0], kernel_size=7)
-        
-        self.time_project = nn.Sequential(
-                                 ConvBlock(diffusion_time_embedding_dim, hidden_dims[0], kernel_size=1, activation_fn=True),
-                                 ConvBlock(hidden_dims[0], hidden_dims[0], kernel_size=1))
-        
-        self.convs = nn.ModuleList([ConvBlock(in_channels=hidden_dims[0], out_channels=hidden_dims[0], kernel_size=3)])
-        
-        for idx in range(1, len(hidden_dims)):
-            self.convs.append(ConvBlock(hidden_dims[idx-1], hidden_dims[idx], kernel_size=3, dilation=3**((idx-1)//2),
-                                                    activation_fn=True, gn=True, gn_groups=8))                                
-                               
-        self.out_project = ConvBlock(hidden_dims[-1], out_channels=img_C, kernel_size=3)
-        
-        
-    def forward(self, perturbed_x, diffusion_timestep):
-        y = perturbed_x
-        
-        diffusion_embedding = self.time_embedding(diffusion_timestep)
-        diffusion_embedding = self.time_project(diffusion_embedding.unsqueeze(-1).unsqueeze(-2))
-        
-        y = self.in_project(y)
-        
-        for i in range(len(self.convs)):
-            y = self.convs[i](y, diffusion_embedding, residual = True)
-            
-        y = self.out_project(y)
-            
-        return y
-    
 class Diffusion(nn.Module):
-    def __init__(self, model, image_resolution=[256, 256, 1], n_times=300, beta_minmax=[1e-4, 2e-2], device='cuda'):
+    def __init__(self, model, image_resolution=[1,256, 256], n_times=300, beta_minmax=[1e-4, 2e-2], device='cuda'):
     
         super(Diffusion, self).__init__()
     
@@ -208,7 +168,7 @@ class Diffusion(nn.Module):
     
     
     def forward(self, x_zeros):
-        x_zeros = self.scale_to_minus_one_to_one(x_zeros)
+        #x_zeros = self.scale_to_minus_one_to_one(x_zeros)
         
         B, _, _, _ = x_zeros.shape
         
@@ -255,7 +215,7 @@ class Diffusion(nn.Module):
             x_t = self.denoise_at_t(x_t, timestep, t)
         
         # denormalize x_0 into 0 ~ 1 ranged values.
-        x_0 = self.reverse_scale_to_zero_to_one(x_t)
+        x_0 = x_t#self.reverse_scale_to_zero_to_one(x_t)
         
         return x_0
     
