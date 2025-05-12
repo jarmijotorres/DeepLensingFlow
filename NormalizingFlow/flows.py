@@ -379,7 +379,7 @@ class SplitFlow(nn.Module):
             ldj -= self.prior.log_prob(z_split).sum(dim=[1,2,3])
         return z, ldj
 
-def create_multiscale_flow(grid_size,device):
+def create_multiscale_flow_simple(grid_size,device):
     flow_layers = []
     
     vardeq_layers = [CouplingLayer(network=GatedConvNet(c_in=2, c_out=2, c_hidden=16),
@@ -404,13 +404,84 @@ def create_multiscale_flow(grid_size,device):
                                       mask=create_channel_mask(c_in=8, invert=(i%2==1)),
                                       c_in=8)]
 
+                
+    flow_model = ImageFlow(flow_layers,device)#.to(device)
+    return flow_model.to(device)
+
+def create_multiscale_flow_double(grid_size,device):
+    flow_layers = []
+    
+    vardeq_layers = [CouplingLayer(network=GatedConvNet(c_in=2, c_out=2, c_hidden=16),
+                                   mask=create_checkerboard_mask(h=grid_size, w=grid_size, invert=(i%2==1)),
+                                   c_in=1) for i in range(2)]
+    
+    flow_layers += [VariationalDequantization(vardeq_layers)]
+    
+    flow_layers += [CouplingLayer(network=GatedConvNet(c_in=1, c_hidden=32),
+                                  mask=create_checkerboard_mask(h=grid_size, w=grid_size, invert=(i%2==1)),
+                                  c_in=1) for i in range(2)]
+    
+    flow_layers += [SqueezeFlow()]
+    for i in range(2):
+        flow_layers += [CouplingLayer(network=GatedConvNet(c_in=4, c_hidden=32),
+                                      mask=create_channel_mask(c_in=4, invert=(i%2==1)),
+                                      c_in=4)]
+    flow_layers += [SplitFlow(),
+                    SqueezeFlow()]
+    for i in range(2):
+        flow_layers += [CouplingLayer(network=GatedConvNet(c_in=8, c_hidden=32),
+                                      mask=create_channel_mask(c_in=8, invert=(i%2==1)),
+                                      c_in=8)]
+
     flow_layers += [SplitFlow(),
                 SqueezeFlow()]
-    for i in range(4):
+    for i in range(2):
         flow_layers += [CouplingLayer(network=GatedConvNet(c_in=16, c_hidden=32),
                                       mask=create_channel_mask(c_in=16, invert=(i%2==1)),
                                       c_in=16)]
                 
+    flow_model = ImageFlow(flow_layers,device)#.to(device)
+    return flow_model.to(device)
+
+def create_multiscale_flow(grid_size,device):
+    flow_layers = []
+    
+    vardeq_layers = [CouplingLayer(network=GatedConvNet(c_in=2, c_out=2, c_hidden=16),
+                                   mask=create_checkerboard_mask(h=grid_size, w=grid_size, invert=(i%2==1)),
+                                   c_in=1) for i in range(2)]
+    
+    flow_layers += [VariationalDequantization(vardeq_layers)]
+    
+    flow_layers += [CouplingLayer(network=GatedConvNet(c_in=1, c_hidden=32),
+                                  mask=create_checkerboard_mask(h=grid_size, w=grid_size, invert=(i%2==1)),
+                                  c_in=1) for i in range(2)]
+    
+    flow_layers += [SqueezeFlow()]
+    for i in range(2):
+        flow_layers += [CouplingLayer(network=GatedConvNet(c_in=4, c_hidden=32),
+                                      mask=create_channel_mask(c_in=4, invert=(i%2==1)),
+                                      c_in=4)]
+    flow_layers += [SplitFlow(),
+                    SqueezeFlow()]
+    for i in range(2):
+        flow_layers += [CouplingLayer(network=GatedConvNet(c_in=8, c_hidden=32),
+                                      mask=create_channel_mask(c_in=8, invert=(i%2==1)),
+                                      c_in=8)]
+
+    flow_layers += [SplitFlow(),
+                SqueezeFlow()]
+    for i in range(2):
+        flow_layers += [CouplingLayer(network=GatedConvNet(c_in=16, c_hidden=32),
+                                      mask=create_channel_mask(c_in=16, invert=(i%2==1)),
+                                      c_in=16)]
+    flow_layers += [SplitFlow(),
+                SqueezeFlow()]
+    for i in range(2):
+        flow_layers += [CouplingLayer(network=GatedConvNet(c_in=32, c_hidden=32),
+                                      mask=create_channel_mask(c_in=32, invert=(i%2==1)),
+                                      c_in=32)]        
+
+        
     flow_model = ImageFlow(flow_layers,device)#.to(device)
     return flow_model.to(device)
 
